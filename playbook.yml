@@ -1,0 +1,79 @@
+---
+- hosts: 127.0.0.1
+  user: joseph
+  become: yes
+  become_method: sudo
+  gather_facts: yes
+  
+  vars:
+    - volume: mysql_data
+    - mysql_db: bank
+    - mysql_user: joseph
+  
+  vars_prompt:
+    - name: mysql_db_pass
+      prompt: Enter MySQL database password
+      private: yes
+
+
+  tasks:
+  - name: Create a docker volume
+    docker_volume:
+      name: "{{ volume }}"
+
+
+
+  - name: Create a container from mysql image for hosting DB
+    docker_container:
+      name: mysql_container
+      image: mysql:5.7
+      env:
+        MYSQL_ROOT_PASSWORD: "{{ mysql_db_pass }}"
+        MYSQL_DATABASE: "{{ mysql_db }}"
+        MYSQL_USER: "{{ mysql_user }}"
+        MYSQL_PASSWORD: "{{ mysql_db_pass }}"
+      ports:
+        - "3307:3306"
+      volumes:
+        - mysql_data:/var/lib/mysql
+      networks:
+        - name: bridge
+    tags:
+      - create_db_container
+
+
+
+  - name: sleep for 120 seconds and continue with play
+    wait_for:
+      timeout: 120
+
+
+
+  - name: Restore the database to the server
+    shell: >
+      mysql -P 3307 -h 127.0.0.1 --protocol=tcp -u root --password="{{ mysql_db_pass }}" bank < bank.sql
+
+
+
+  - name: Building image for webpage host
+    docker_image:
+      name: myapp
+      path: './'
+      state: present
+    tags:
+      - create_myapp_container
+
+
+
+  - name: Create a container from the PHP image
+    docker_container:
+      name: myapp_container
+      image: myapp
+      networks:
+        - name: bridge
+      ports:
+        - "8080:80"
+      links:
+        - mysql_container
+    tags:
+      - create_myapp_container
