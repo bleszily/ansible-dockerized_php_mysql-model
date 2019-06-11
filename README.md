@@ -1,4 +1,4 @@
-## Dockerized - PHP & MySQLdb application test attempt, fully deployed using Ansible with some key flexibilities
+## Dockerized - PHP & MySQLdb application test attempt, fully deployed using Ansible with some key flexibility
 
 
 ### What it does ?
